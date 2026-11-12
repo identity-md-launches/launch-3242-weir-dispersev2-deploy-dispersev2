@@ -102,10 +102,20 @@ in the app repo. This folder is pushed to `weircool/disperse-contracts` as a sub
 `0x320418D854f3eD0E59e691dD7c767A22B8E5C9E9`, refuses to broadcast if the bytecode drifted and skips when the
 address already has code. A swarm deployment lands at the swarm deployer's own address instead; either works.
 
-## After deployment
+## Deployed
 
-Check the deployed code is the tested code: `cast keccak $(cast code <address> --rpc-url $RH_RPC_URL)` must be
-`0xb65a4cb1e0ebc66ee4e7d80658ed75d5013b6c01d003638138623e0968ba43ca`, the same runtime as on Base.
+| chain | id | address | tx |
+|---|---|---|---|
+| Robinhood Chain | 4663 | `0x49959c0326c4dF604a4d62D46CCBAe3C056CC158` | [`0xeae6a300…`](https://robin.etherscan.io/tx/0xeae6a3002240dd9eac8272d9cc27ea116b749a8b7bafc5611bfd55b12fd2bff5) (block 112219060) |
 
-Record the address here and in the app (`src/lib/robinhoodChain.ts`), and write the ABI for the app with
-`forge inspect src/Disperse.sol:Disperse abi --json`.
+Deployed 2026-11-12 by the IMD swarm as launch 3221 from commit `f402a3a855b2f8f1c97aa0ea9367ebc975327eb3` of
+this repository, after its review panel reported nothing at medium or above (two informational notes, both
+described above: the atomic batch and the permit replacing a standing allowance). That panel is a first filter,
+not an audit.
+
+The deployed code is the tested code: `cast keccak $(cast code <address> --rpc-url $RH_RPC_URL)` gives
+`0xb65a4cb1e0ebc66ee4e7d80658ed75d5013b6c01d003638138623e0968ba43ca`, the same runtime as on Base (checked
+2026-11-12).
+
+The app reads the address from `src/lib/robinhoodChain.ts` and the ABI from `public/weir/abi/Disperse.json`,
+written with `forge inspect src/Disperse.sol:Disperse abi --json`.
