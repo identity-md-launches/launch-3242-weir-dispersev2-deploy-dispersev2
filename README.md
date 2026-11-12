@@ -136,14 +136,16 @@ Dependencies are vendored under `lib/`: OpenZeppelin Contracts v5.5.0 and forge-
 
 ## Deploy
 
-The IMD swarm deploys it from `launch.json` (kind `evm_contracts`, chain 4663, contract `Disperse`, no constructor
-arguments) after auditing the repository as it arrived; the request is `docs/imd/launch-disperse-robinhood.json`
-in the app repo. This folder is pushed to `weircool/disperse-contracts` as a subtree for that, as Townies is.
+The IMD swarm deploys from `launch.json` (kind `evm_contracts`, chain 4663, no constructor arguments) after
+auditing the repository as it arrived. v1 went out that way (request `docs/imd/launch-disperse-robinhood.json` in the
+app repo, launch 3221). `launch.json` now names `DisperseV2` for its launch (`docs/imd/launch-disperse-v2.json`);
+v1 is not deployed again. This folder is pushed to `weircool/disperse-contracts` as a subtree for that, as Townies is.
 
 `script/Deploy.s.sol` is the owner's fallback: a deterministic CREATE2 deploy through the standard proxy at
 `0x4e59b44847b379578588920cA78FbF26c0B4956C` (present on Robinhood Chain) that lands at the Base address
 `0x320418D854f3eD0E59e691dD7c767A22B8E5C9E9`, refuses to broadcast if the bytecode drifted and skips when the
 address already has code. A swarm deployment lands at the swarm deployer's own address instead; either works.
+`script/DeployV2.s.sol` does the same for v2 (salt `weir.disperse.v2`, pinned `0x32133119DBb4e4C9Ba1b8cEDe3CA49C726F20983`).
 
 ## Deployed
 
