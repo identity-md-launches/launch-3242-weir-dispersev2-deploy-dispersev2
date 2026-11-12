@@ -38,6 +38,48 @@ What the caller (the app) must do, because the contract does not:
 - Trust logs only from known tokens and from the recorded Disperse address. A made-up token can emit
   `Transfer` and `Dispersed` with nothing moved, and `Dispersed.total` is what was asked, not proof of receipt.
 
+## DisperseV2 (written, not deployed)
+
+`src/DisperseV2.sol`: everything above, plus public messages. v1 stays deployed and keeps working; v2 is a separate
+contract at a new address, because v1 cannot be changed.
+
+- `disperse`, `disperseWithPermit`, `sumOf` and the `Dispersed` event keep v1's exact signatures.
+- `disperseWithMemo(token, to[], amounts[], ref, memo, memos[], permit)`: the same send with
+  - `ref`: the sender's own reference for the payout (the Weir app passes its payout id), zero if unused;
+  - `memo`: a message for the whole payout, up to 280 bytes, may be empty;
+  - `memos`: one message per recipient, up to 140 bytes each: an empty array, or one entry per recipient (any may be
+    empty);
+  - `permit`: `(deadline, v, r, s)` for exactly the sum; `deadline == 0` means none, use the allowance.
+- Events: `Memo(sender, token, ref, total, count, memo)` once per call that has a reference or a payout memo;
+  `Paid(sender, to, token, amount, ref, memo)` once per recipient whose own memo is not empty. `to` is indexed.
+- New reverts: `MemoLengthMismatch`, `MemoTooLong(index)` (index is `type(uint256).max` for the payout memo),
+  `TransferFailed(index, reason)`.
+
+Two behaviours differ from v1 for callers of the kept functions:
+
+- The token's own address is refused as a recipient (`SelfRecipient(i)`). v1 paid it and the money was stuck.
+- A transfer the token refuses (a frozen or blocked recipient, a short balance) reverts with
+  `TransferFailed(i, reason)`, naming the row, instead of the token's bare reason. The batch is still all or nothing.
+  `reason` is the token's revert data cut to 256 bytes.
+
+Reading v2's errors and events correctly:
+
+- `TransferFailed(i)` says where the transfer failed, not whose fault it is. A frozen sender, or this contract
+  being frozen by the token, fails at row 0 exactly as a frozen first recipient does; a balance that runs out names
+  the first row it cannot cover; only the first failing row is named.
+- `Memo` and `Paid` are notes, not proof. Anyone can emit any reference or address a note to anyone, using a token
+  they made up or a dust amount of a real one. Trust them only for a sender and a token already known, and take the
+  token's own `Transfer` logs as the record of what moved.
+
+Reviewed 2026-11-12 by an independent adversarial pass: no critical or high findings; the `total` and `count` in
+`Memo`, the wording above and several tests came out of it. Still not an audit.
+
+**Messages are public and permanent.** They are copied from calldata into events and nothing else; they cannot
+change who is paid or how much. Still no owner, no fee, no pause, no upgrade, no rescue, no storage, nothing payable.
+
+Gas with real USDG: 33,656 per fresh-balance recipient with no memo (v1: 33,661), 39,689 with a 140-byte memo each.
+The spec, the decisions behind it and the measured numbers are in the app repository at `docs/DISPERSE-V2.md`.
+
 ## Tokens on Robinhood Chain (checked on a fork, 2026-11-11)
 
 | token | address | decimals | permit |
@@ -59,11 +101,12 @@ forge build
 forge test
 forge fmt --check
 # fork tests against real USDG and WEIR; skipped when the variable is unset
-RH_RPC_URL=https://robinhood-rpc.publicnode.com forge test --match-contract DisperseForkTest -vv
+RH_RPC_URL=https://robinhood-rpc.publicnode.com forge test --match-contract ForkTest -vv
 ```
 
-32 tests: 26 unit and fuzz (mocks for a 6-decimals permit token, a no-return token, a plain token and a reentrant
-token) and 6 fork tests (USDG, WEIR, IMD). `foundry.toml`, verbatim:
+90 tests. v1: 26 unit and fuzz (mocks for a 6-decimals permit token, a no-return token, a plain token and a
+reentrant token) and 6 fork tests (USDG, WEIR, IMD). v2: 28 unit and fuzz of its own, v1's 25 pointed at it, and 5
+fork tests, one of which freezes a recipient on the real USDG. `foundry.toml`, verbatim:
 
 ```toml
 [profile.default]
